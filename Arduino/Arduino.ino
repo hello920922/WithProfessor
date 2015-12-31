@@ -31,6 +31,7 @@ void loop() {
 
 boolean isWakeup() {
   ACK = "";
+  mySerial.flush();
   mySerial.write("AT");
   delay(80);
   while (mySerial.available()) {
@@ -43,6 +44,7 @@ boolean isWakeup() {
 
 void modeSleep(){
   ACK = "";
+  mySerial.flush();
   mySerial.write("AT+SLEEP");
   delay(80);
   while(mySerial.available()){
@@ -54,6 +56,7 @@ void modeSleep(){
 
 void modeWakeup() {
   ACK = "";
+  mySerial.flush();
   while(1){             //Until the module be woken up, send characters
     Serial.println("Send 80 characters");
     mySerial.write("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
@@ -93,6 +96,7 @@ void sendToBeacon(int val) {
   Serial.println(sendStr);
 
   //Send to beacon
+  mySerial.flush();
   mySerial.write(sendStr);
   delay(100);
 
