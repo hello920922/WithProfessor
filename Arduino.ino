@@ -1,6 +1,7 @@
 #include <SoftwareSerial.h>
 
 SoftwareSerial mySerial(2, 3); // RX, TX
+String ACK;
 
 void setup() {
   Serial.begin(9600);
@@ -8,50 +9,98 @@ void setup() {
 }
 
 void loop() {
-  int val = analogRead(0);  //read sensor
-  sendToBeacon(val);        //call function : send to beacon
-  
-  delay(2000);
+  int val = analogRead(0);    //read sensor
+
+  if (val < 30) { //Check sensor value
+    Serial.println("Go to sleep mode");
+    modeSleep();              //Put module into sleep
+    delay(2000);
+  }
+
+  else if (!isWakeup()) {     //Check AT mode whether wakeup or sleep
+    Serial.println("AT is sleep mode");
+    modeWakeup();             //Wakeup module
+  }
+
+  else {
+    Serial.println("AT is wakeup mode");
+    sendToBeacon(val);        //Send BT Command
+    delay(2000);
+  }
+}
+
+boolean isWakeup() {
+  ACK = "";
+  mySerial.write("AT");
+  delay(80);
+  while (mySerial.available()) {
+    ACK += (char)mySerial.read();
+    delay(50);
+  }
+  Serial.println(ACK);
+  return ACK.indexOf("OK") > -1;
+}
+
+void modeSleep(){
+  ACK = "";
+  mySerial.write("AT+SLEEP");
+  delay(80);
+  while(mySerial.available()){
+    ACK += (char)mySerial.read();
+    delay(50);
+  }
+  Serial.println(ACK);
+}
+
+void modeWakeup() {
+  ACK = "";
+  while(1){             //Until the module be woken up, send characters
+    Serial.println("Send 80 characters");
+    mySerial.write("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    delay(2000);
+    while (mySerial.available()) {
+      ACK += (char)mySerial.read();
+      delay(50);
+    }
+    Serial.println(ACK);
+    if (!ACK.compareTo("OK+WAKE"))    //If ack message is "OK+WAKE" escape loop
+      break;
+  }
 }
 
 void sendToBeacon(int val) {
-  //make command header
-  String str = "AT+MARJ0x";
-  
-  //make string of sensor value
-  String valStr;
-  if (val > 0)
-    valStr = String(val, HEX);
-  else
-    valStr = "0001";
+  ACK = "";
+  //Make command header
+  String str("AT+MARJ0x");
+
+  //Make string of sensor value
+  String valStr(val, HEX);
   valStr.toUpperCase();
 
-  //complete command
-  for (int i = 0; i < 4 - valStr.length(); i++) {
+  //Complete command
+  for (int i = 0; i < 4 - valStr.length(); i++)
     str += "0";
-  }
   str += valStr;
 
-  //to character array
+  //Transform to character array
   char sendStr[14];
   str.toCharArray(sendStr, 14);
 
   //print log
   Serial.print("sensor value : ");
   Serial.println(val);
-
   Serial.print("send to beacon : ");
   Serial.println(sendStr);
 
-  //send to beacon
+  //Send to beacon
   mySerial.write(sendStr);
+  delay(100);
 
   //print response
-  delay(50); //wait a moment
-  if (mySerial.available()) {
-    while (mySerial.available()) {
-      Serial.write(mySerial.read());
-    }
-    Serial.println("\n"); //two newlines
+  while (mySerial.available()) {
+    ACK += (char)mySerial.read();
+    delay(50);
   }
+  Serial.println(ACK);
+  Serial.println();
 }
