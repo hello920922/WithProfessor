@@ -13,10 +13,11 @@ import android.widget.TextView;
  * Created by Mingyu Park on 2016-01-11.
  */
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
-    BTConnector btConnector;
+    BLEConnector bleConnector;
     LinearLayout peripheralList;
     TextView logView;
     EditText writeView;
+    int i=0;
 
     int state;
 	
@@ -31,19 +32,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         logView = (TextView)findViewById(R.id.txt_log);
         writeView = (EditText)findViewById(R.id.write_message);
 
-        btConnector = new BTConnector(this) {
+        bleConnector = new BLEConnector(this) {
             @Override
-            protected void discoveryAvailableDevice(final BluetoothDevice bluetoothDevice) {
+            protected void discoveryAvailableDevice(final BluetoothDevice bluetoothDevice, int rssi, byte[] scanRecord) {
                 Button button = new Button(this.getContext());
-                button.setText(bluetoothDevice.getName() + "\n" + bluetoothDevice.getAddress());
+                button.setText((i++) + bluetoothDevice.getName() + "\n" + bluetoothDevice.getAddress());
                 button.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        btConnector.connectDevice(bluetoothDevice);
+                        bleConnector.connectDevice(bluetoothDevice);
                     }
                 });
                 peripheralList.addView(button);
             }
+
             @Override
             public void readHandler(byte[] data) {
                 logView.append(new String(data) + "\n");
@@ -54,10 +56,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View v) {
         if (v.getId() == R.id.btn_scan) {
-            btConnector.startDiscovery();
+            bleConnector.startDiscovery();
         }
         else if (v.getId() == R.id.btn_write){
-            btConnector.writeMessage(writeView.getText().toString().getBytes());
+            bleConnector.writeMessage(writeView.getText().toString().getBytes());
         }
     }
 }

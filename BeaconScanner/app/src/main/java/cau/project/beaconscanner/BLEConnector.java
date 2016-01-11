@@ -1,5 +1,6 @@
 package cau.project.beaconscanner;
 
+import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
@@ -7,10 +8,12 @@ import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
-import android.content.BroadcastReceiver;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanResult;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
@@ -30,18 +33,24 @@ public abstract class BLEConnector extends Handler{
     public static final int BLUETOOTH_CONNECT_MESSAGE = 1;
     public static final int BLUETOOTH_NOT_SUPPORT_MESSAGE = 2;
 
+    public static final int WRITE_TYPE_DEFAULT = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+    public static final int WRITE_TYPE_NO_RESPONSE = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE;
+    public static final int WRITE_TYPE_SIGNED = BluetoothGattCharacteristic.WRITE_TYPE_SIGNED;
+
     // Define constant to process intent
     public static final int REQUEST_ENABLE_BT = 0;
 
     // Define constant to log message
-    private final String LOGTAG = "BTConnector";
+    private final String LOGTAG = "BLEConnector";
 
     // Define variables to processing
     private Context context;
-    private BroadcastReceiver mBroadcastReceiver;
 
     // Define variables to BLE
     private BluetoothAdapter mBluetoothAdapter;
+    private BluetoothLeScanner mBluetoothLeScanner;
+    private ScanCallback mScanCallback;
+    private BluetoothAdapter.LeScanCallback mLeScanCallback;
 
     // variables to process callback function
     private BluetoothGattCallback mBluetoothGattCallback;
@@ -56,7 +65,16 @@ public abstract class BLEConnector extends Handler{
         this.context = context;
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        mBroadcastReceiver = makeBroadcastReceiver();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            mBluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
+            mScanCallback = makeScanCallback();
+            mLeScanCallback = null;
+        }
+        else {
+            mBluetoothLeScanner = null;
+            mLeScanCallback = makeLeScanCallback();
+            mScanCallback = null;
+        }
         mBluetoothGattCallback = new BluetoothGattCallback() {
             @Override
             public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -136,7 +154,8 @@ public abstract class BLEConnector extends Handler{
                 writeHandler((byte[])msg.obj, msg.arg1);
                 break;
             case BLUETOOTH_DISCOVERY_MESSAGE :
-                discoveryAvailableDevice((BluetoothDevice) msg.obj);
+                Object[] objs = (Object[])msg.obj;
+                discoveryAvailableDevice((BluetoothDevice)objs[0], msg.arg1, (byte[])objs[1]);
                 break;
             case BLUETOOTH_CONNECT_MESSAGE :
                 connectHandler((BluetoothDevice) msg.obj);
@@ -147,8 +166,65 @@ public abstract class BLEConnector extends Handler{
         }
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private ScanCallback makeScanCallback() {
+        return new ScanCallback() {
+            @Override
+            public void onScanResult(int callbackType, ScanResult result) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    Log.d(LOGTAG, "Found device : " + result.getDevice().getName() + "\t(" + result.getDevice().getAddress() + ")");
+
+                    Object[] objs = new Object[2];
+                    objs[0] = result.getDevice();
+                    objs[1] = result.getScanRecord().getBytes();
+
+                    Message msg = Message.obtain();
+                    msg.obj = objs;
+                    msg.what = BLUETOOTH_DISCOVERY_MESSAGE;
+                    msg.arg1 = result.getRssi();
+
+                    sendMessage(msg);
+                }
+            }
+
+            @Override
+            public void onScanFailed(int errorCode) {
+                switch (errorCode) {
+                    case ScanCallback.SCAN_FAILED_ALREADY_STARTED:
+                        break;
+                    case ScanCallback.SCAN_FAILED_APPLICATION_REGISTRATION_FAILED:
+                        break;
+                    case ScanCallback.SCAN_FAILED_FEATURE_UNSUPPORTED:
+                        break;
+                    case ScanCallback.SCAN_FAILED_INTERNAL_ERROR:
+                        break;
+                }
+            }
+        };
+    }
+
+    private BluetoothAdapter.LeScanCallback makeLeScanCallback(){
+        return new BluetoothAdapter.LeScanCallback() {
+            @Override
+            public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
+                Log.d(LOGTAG, "Found device : " + device.getName() + "\t(" + device.getAddress() + ")");
+
+                Object[] objs = new Object[2];
+                objs[0] = device;
+                objs[1] = scanRecord;
+
+                Message msg = Message.obtain();
+                msg.obj = objs;
+                msg.what = BLUETOOTH_DISCOVERY_MESSAGE;
+                msg.arg1 = rssi;
+
+                sendMessage(msg);
+            }
+        };
+    }
+
     // API users should implement this method
-    protected abstract void discoveryAvailableDevice(BluetoothDevice bluetoothDevice);
+    protected abstract void discoveryAvailableDevice(final BluetoothDevice bluetoothDevice, int rssi, byte[] scanRecord);
     public abstract void readHandler(byte[] data);
 
     // After check whether the device support bluetooth and bluetooth state, start discovery
@@ -165,14 +241,29 @@ public abstract class BLEConnector extends Handler{
             else
                 context.startActivity(btEnIntent);
         }
-        if (!mBluetoothAdapter.isDiscovering())
-            mBluetoothAdapter.startDiscovery();
+        if(!mBluetoothAdapter.isDiscovering()){
+            // Check API Level
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP){
+                Log.d(LOGTAG, "This SDK version is 5.0 or higher");
+                mBluetoothLeScanner.startScan(mScanCallback);
+            }
+            else{
+                Log.d(LOGTAG, "This SDK version is less than 5.0");
+                mBluetoothAdapter.startLeScan(mLeScanCallback);
+            }
+        }
     }
 
     // Cancel discovery or disconnect
     public void disconnect() {
-        if (mBluetoothAdapter != null && mBluetoothAdapter.isDiscovering())
-            mBluetoothAdapter.cancelDiscovery();
+        if (mBluetoothAdapter != null && mBluetoothAdapter.isDiscovering()) {
+            mBluetoothAdapter.stopLeScan(new BluetoothAdapter.LeScanCallback() {
+                @Override
+                public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
+
+                }
+            });
+        }
         if (mDefaultBluetoothGattCharacteristic != null)
             mDefaultBluetoothGattCharacteristic = null;
         if (mDefaultBluetoothGatt != null)
@@ -182,30 +273,6 @@ public abstract class BLEConnector extends Handler{
     // If device does not support bluetooth, this method is executed
     protected void notSupportBluetooth(){
         Toast.makeText(context, "This device does not support bluetooth", Toast.LENGTH_SHORT).show();
-    }
-
-    // Make broadcast receiver and define behavior
-    private BroadcastReceiver makeBroadcastReceiver() {
-        BroadcastReceiver newBroadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String action = intent.getAction();
-                if (action.equals(BluetoothAdapter.ACTION_DISCOVERY_STARTED))
-                    discoveryStartAction();
-                else if (action.equals(BluetoothDevice.ACTION_FOUND))
-                    foundAction((BluetoothDevice) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
-                else if (action.equals(BluetoothAdapter.ACTION_DISCOVERY_FINISHED))
-                    discoveryFinishAction();
-            }
-        };
-        IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
-        context.registerReceiver(newBroadcastReceiver, filter);
-        filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-        context.registerReceiver(newBroadcastReceiver, filter);
-        filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-        context.registerReceiver(newBroadcastReceiver, filter);
-
-        return newBroadcastReceiver;
     }
 
     // Users can reimplement this method
@@ -265,7 +332,7 @@ public abstract class BLEConnector extends Handler{
         Message msg = Message.obtain();
         msg.what = BLUETOOTH_WRITE_MESSAGE;
         msg.obj = message;
-        msg.arg1 = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+        msg.arg1 = WRITE_TYPE_DEFAULT;
 
         sendMessage(msg);
     }
@@ -283,13 +350,6 @@ public abstract class BLEConnector extends Handler{
     // If Activity is changed, users can change handle activity using this method
     public void changeContext(Context context){
         this.context = context;
-
-        IntentFilter filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
-        context.registerReceiver(mBroadcastReceiver, filter);
-        filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-        context.registerReceiver(mBroadcastReceiver, filter);
-        filter = new IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-        context.registerReceiver(mBroadcastReceiver, filter);
     }
 
     // Return this object's target context
