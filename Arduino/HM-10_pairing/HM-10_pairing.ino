@@ -1,28 +1,51 @@
-// HM-10 pairing source code
-#include <SoftwareSerial.h>
+/*
+ * Title : HM-10 pairing source code
+ * Since : 2016-01-18
+ * Auther : Mingyu Park
+ * Last Modify : 2016-01-19
+ */
 
-SoftwareSerial BTSerial(2,3);
 
-int txDelay(100);
-int sleepDelay(5000);
+/*
+ * Recommends using this source code after following commands
+ * 1. AT+RENEW (Initialize bluetooth module)
+ * 2. AT+PWRM0 (Set mode to auto sleep)
+ * 3. AT+POWE0 (Set power to the minimum)
+ * 4. AT+SAVE1 (Set save mode which does not save connected device's address
+ * 5. AT+ADVI9 (Set advertising interval to the maximum level)
+ *    (The max level of AT+ADVI command is F(7000ms) but, IOS system recommends level 9 (1285ms)
+ * 6. AT+NAME[PARA] (rename to [PARA])
+ * 7. AT+RESET (Apply setting)
+ */
+
+
+#include <SoftwareSerial.h>     // Include library
+
+SoftwareSerial BTSerial(2, 3);  // Value for using bluetooth
+int statePin = 8;                 // Value for checking conntected state
+int wakeupPin = 9;                // Value for waking up module
+
+int txDelay(2000);                // Delay after send data
+int sleepDelay(5000);             // Delay when the module is sleeping
 
 void setup() {
-  Serial.begin(9600);
-  BTSerial.begin(9600);
+  BTSerial.begin(9600);           // Start communication with bluetooth module
+  pinMode(statePin, INPUT);       // Setting for read connected state
+  pinMode(wakeupPin, OUTPUT);     // Setting for waking up module
+  digitalWrite(wakeupPin, HIGH);  // Initialize wakeupPin
 }
 
 void loop() {
-  if(BTSerial.available()){
-    int val = analogRead(0);
-    
-    BTSerial.write(val);
-    while(BTSerial.available())
-      Serial.write(BTSerial.read());
-    Serial.println();
+  if (digitalRead(statePin) == HIGH) {
+    // If the module connected, send to sensor value
+    BTSerial.print(analogRead(0));
+    BTSerial.flush();
 
+    // Wait during tx delay period after sending date
     delay(txDelay);
   }
-  else{
+  else {
+    // If the module disconnected, just wait during sleep delay period
     delay(sleepDelay);
   }
 }

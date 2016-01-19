@@ -9,7 +9,7 @@ int offCount;
 
 int checkVal = 30;      // Value for checking on state
 int offDelay = 5000;   // 5 sec
-int onDelay = 500;     // 500 ms
+int onDelay = 100;     // 100 ms
 int offInterval = 9;    // Max interval parameter is F (7000 ms) But IOS system recommends 9 (1285 ms)
 int onInterval = 0;     // Min interval parameter is 0 (100 ms)
 int limitCount;         // Value for checking off count
@@ -17,10 +17,6 @@ int limitCount;         // Value for checking off count
 void setup() {
   Serial.begin(9600);
   BTSerial.begin(9600);
-
-  pinMode(statePin, INPUT);
-  pinMode(systemKey, OUTPUT);
-  
   offCount = 0;
 }
 
@@ -35,25 +31,21 @@ void loop() {
     else{
       modeWakeup();
       sendToBeacon(val);
-      delay(onDelay);
     }
   }
   else{
     if(val < checkVal){
       offCount = 0;
       sendToBeacon(val);
-      delay(onDelay);
     }
     else{
       if(offCount > limitCount){
         modeSleep();
         offCount = 0;
-        delay(offDelay);
       }
       else{
         offCount ++;
         sendToBeacon(val);
-        delay(onDelay);
       }
     }
   }
@@ -108,18 +100,18 @@ void modeSleep(){
 void modeWakeup() {
   ACK = "";
   BTSerial.flush();
-
-  digitalWrite(systemKey, HIGH);
   while(1){             //Until the module be woken up, send characters
+    Serial.println("Send 80 characters");
+    BTSerial.write("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    delay(2000);
     while (BTSerial.available()) {
       ACK += (char)BTSerial.read();
       delay(50);
     }
-    //Serial.println(ACK);
+    Serial.println(ACK);
     if (!ACK.compareTo("OK+WAKE"))    //If ack message is "OK+WAKE" escape loop
       break;
   }
-  digitalWrite(systemKey, LOW);
 
   // Make interval setting command
   String str("AT+ADVI"+onInterval);
@@ -177,4 +169,6 @@ void sendToBeacon(int val) {
   }
   Serial.println(ACK);
   Serial.println();
+  
+  delay(onDelay);
 }
