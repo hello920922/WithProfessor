@@ -29,23 +29,23 @@ int txDelay(2000);                // Delay after send data
 int sleepDelay(5000);             // Delay when the module is sleeping
 
 void setup() {
-  BTSerial.begin(9600);           // Start communication with bluetooth module
-  pinMode(statePin, INPUT);       // Setting for read connected state
-  pinMode(wakeupPin, OUTPUT);     // Setting for waking up module
-  digitalWrite(wakeupPin, HIGH);  // Initialize wakeupPin
+    BTSerial.begin(9600);           // Start communication with bluetooth module
+    pinMode(statePin, INPUT);       // Setting for read connected state
+    pinMode(wakeupPin, OUTPUT);     // Setting for waking up module
+    digitalWrite(wakeupPin, HIGH);  // Initialize wakeupPin
 }
 
 void loop() {
-  if (digitalRead(statePin) == HIGH) {
-    // If the module connected, send to sensor value
-    BTSerial.print(analogRead(0));
-    BTSerial.flush();
-
-    // Wait during tx delay period after sending date
-    delay(txDelay);
-  }
-  else {
-    // If the module disconnected, just wait during sleep delay period
-    delay(sleepDelay);
-  }
+    if (digitalRead(statePin) == HIGH) {
+        // If the module connected, send to sensor value
+        BTSerial.print(analogRead(0));
+        BTSerial.flush();
+    
+        // Wait during tx delay period after sending date
+        delay(txDelay);
+    }
+    else {
+        // If the module disconnected, just wait during sleep delay period
+        delay(sleepDelay);
+    }
 }
