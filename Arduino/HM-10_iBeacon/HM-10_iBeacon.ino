@@ -2,7 +2,7 @@
  * Title : HM-10 iBeacon source code
  * Since : 2016-01-19
  * Auther : Mingyu Park
- * Last Modify : 2016-01-19
+ * Last Modify : 2016-02-10
  */
 
 
@@ -11,14 +11,13 @@
  * 1. AT+RENEW (Initialize bluetooth module)
  * 2. AT+ADTY3 (Set advertising type to only allowing advertising)
  * 3. AT+IBEA1 (Turn on the iBeacon switch)
- * 4. AT+MARJ0x0001 (Set Major value to the default value)
+ * 4. AT+MINO0x0001 (Set Minor value to the default value)
  * 5. AT+NAME[PARA] (rename to [PARA])
  * 6. AT+IBE0 ~ AT+IBE3[00000001 ~ FFFFFFFE] (Set iBeacon UUID)
  * 7. AT+PWRM1 (Set mode to don't auto sleep)
- * 8. AT+POWE0 (Set power to the minimum)
- * 10. AT+ADVI9 (Set advertising interval to the maximum level)
+ * 8. AT+ADVI9 (Set advertising interval to the maximum level)
  *     (The max level of AT+ADVI command is F(7000ms) but, IOS system recommends level 9 (1285ms)
- * 11. AT+RESET (Apply setting)
+ * 9. AT+RESET (Apply setting)
  */
 
 
@@ -134,7 +133,7 @@ void setInterval(boolean flag){
 
 void setValue(){
     //Make command header
-    String str("AT+MARJ0x");
+    String str("AT+MINO0x");
   
     //Make string of sensor value
     if(val == 0)

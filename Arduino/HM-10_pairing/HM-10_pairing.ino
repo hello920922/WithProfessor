@@ -10,12 +10,11 @@
  * Recommends using this source code after following commands
  * 1. AT+RENEW (Initialize bluetooth module)
  * 2. AT+PWRM0 (Set mode to auto sleep)
- * 3. AT+POWE0 (Set power to the minimum)
- * 4. AT+SAVE1 (Set save mode which does not save connected device's address
- * 5. AT+ADVI9 (Set advertising interval to the maximum level)
+ * 3. AT+SAVE1 (Set save mode which does not save connected device's address
+ * 4. AT+ADVI9 (Set advertising interval to the maximum level)
  *    (The max level of AT+ADVI command is F(7000ms) but, IOS system recommends level 9 (1285ms)
- * 6. AT+NAME[PARA] (rename to [PARA])
- * 7. AT+RESET (Apply setting)
+ * 5. AT+NAME[PARA] (rename to [PARA])
+ * 6. AT+RESET (Apply setting)
  */
 
 
