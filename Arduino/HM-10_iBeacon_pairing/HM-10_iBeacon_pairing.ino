@@ -25,11 +25,11 @@
 #include <SoftwareSerial.h>         // Include library
 
 SoftwareSerial BTSerial(2, 3);      // Value for using bluetooth
-int statePin = 4;                     // Value for checking conntected state
-int wakeupPin = 5;                    // Value for waking up module
+int statePin = 5;                     // Value for checking conntected state
+int wakeupPin = 4;                    // Value for waking up module
 
-int txDelay(1500);                    // Delay after send data
-int ibeaconDelay(1000);               // Delay after set minor value
+int txDelay(100);                    // Delay after send data
+int ibeaconDelay(10500);               // Delay after set minor value
 int sleepDelay(5000);                 // Delay when the module is sleeping
 int beforeVal;                        // Value for checking change
 int offCount;                         // Value for invalid value count
@@ -50,9 +50,11 @@ void setup() {
 }
 
 void loop() {
+    changedValue();
     if (nowState() == 2) {
+        Serial.println("Module is connected");
         // If the module connected, send to sensor value
-        BTSerial.print(analogRead(0));
+        BTSerial.print(val);
         BTSerial.flush();
 
         // Wait during tx delay period after sending date
@@ -114,20 +116,72 @@ int nowState() {
 }
 
 boolean changedValue() {
-    int tilt1 = analogRead(0);
-    int tilt2 = analogRead(1);
+    /*
+     * First 1 byte Left side :
+     * Second 1 byte Right sid :
+     *   ->  0-F-B-T
+     *     
+     */
+    int lt = analogRead(0);
+    int rt = analogRead(1);
+    int lf = analogRead(2);
+    int lb = analogRead(3);
+    int rf = analogRead(4);
+    int rb = analogRead(5);
+  
     
-    if(tilt1>=1000) val = 0x300;
-    else if(tilt1 >= 600) val = 0x200;
-    else if(tilt1 >= 200) val = 0x100;
-    else val = 0x000;
+    if(lf >= 270) lf = 3;
+    else if(lf >= 150) lf = 2;
+    else if(lf >= 100) lf = 1;
+    else lf = 0;
+  
+    if(lb >= 200) lb = 3;
+    else if(lb >= 130) lb = 2;
+    else if(lb >= 70) lb = 1;
+    else lb = 0;
+  
+    if(rf >= 320) rf = 3;
+    else if(rf >= 250) rf = 2;
+    else if(rf >= 100) rf = 1;
+    else rf = 0;
+  
+    if(rb >= 240) rb = 3;
+    else if(rb >= 150) rb = 2;
+    else if(rb >= 100) rb = 1;
+    else rb = 0;
+    
+    if(lt>=1000) lt = 3;
+    else if(lt >= 600) lt = 2;
+    else if(lt >= 200) lt = 1;
+    else lt = 0;
 
-    if(tilt2>=1000) val += 3;
-    else if(tilt2 >= 600) val += 2;
-    else if(tilt2 >= 200) val += 1;
-    else val += 0;
-    
-    Serial.println(val);
+    if(rt>=1000) rt += 3;
+    else if(rt >= 600) rt += 2;
+    else if(rt >= 200) rt += 1;
+    else rt += 0;
+
+    val = 0;
+
+    val += lf << 4;
+    val += lb << 2;
+    val += lt;
+
+    val <<= 8;
+
+    val += rf << 4;
+    val += rb << 2;
+    val += rt;
+
+    Serial.println("============================");
+    Serial.print(lf);
+    Serial.print(lb);
+    Serial.print(lt);
+    Serial.print(rf);
+    Serial.print(rb);
+    Serial.println(rt);
+
+    Serial.print("Val : ");
+    Serial.println(val,HEX);
     if(val == beforeVal)
       return false;
     beforeVal = val;
@@ -183,7 +237,7 @@ void setValue() {
     str.toCharArray(sendStr, 14);
 
     //Send to beacon
-    Serial.println(sendStr);
+    //Serial.println(sendStr);
     BTSerial.write(sendStr);
     BTSerial.flush();
     delay(100);
