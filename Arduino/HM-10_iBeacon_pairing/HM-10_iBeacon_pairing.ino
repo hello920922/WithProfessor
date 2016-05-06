@@ -155,10 +155,10 @@ boolean changedValue() {
     else if(lt >= 200) lt = 1;
     else lt = 0;
 
-    if(rt>=1000) rt += 3;
-    else if(rt >= 600) rt += 2;
-    else if(rt >= 200) rt += 1;
-    else rt += 0;
+    if(rt>=1000) rt = 3;
+    else if(rt >= 600) rt = 2;
+    else if(rt >= 200) rt = 1;
+    else rt = 0;
 
     val = 0;
 
