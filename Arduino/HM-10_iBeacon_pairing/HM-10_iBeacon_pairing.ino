@@ -28,7 +28,7 @@ SoftwareSerial BTSerial(2, 3);      // Value for using bluetooth
 int statePin = 5;                     // Value for checking conntected state
 int wakeupPin = 4;                    // Value for waking up module
 
-int txDelay(100);                    // Delay after send data
+int txDelay(50);                    // Delay after send data
 int ibeaconDelay(10500);               // Delay after set minor value
 int sleepDelay(5000);                 // Delay when the module is sleeping
 int beforeVal;                        // Value for checking change
@@ -152,12 +152,12 @@ boolean changedValue() {
     
     if(lt>=1000) lt = 3;
     else if(lt >= 600) lt = 2;
-    else if(lt >= 200) lt = 1;
+    else if(lt >= 200) lt = 2;
     else lt = 0;
 
     if(rt>=1000) rt = 3;
     else if(rt >= 600) rt = 2;
-    else if(rt >= 200) rt = 1;
+    else if(rt >= 200) rt = 2;
     else rt = 0;
 
     val = 0;
